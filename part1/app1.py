@@ -855,7 +855,7 @@ def my_leave_requests():
         return jsonify({"requests": []}), 200
 
     leave = (
-        LeaveRequest.query.filter_by(emp_id=emp_id)
+        LeaveRequest.query.filter_by(emp_id=emp_id, is_deleted=False)
         .order_by(LeaveRequest.created_at.desc())
         .all()
     )
@@ -1252,43 +1252,82 @@ def get_employee_by_id(id):
         return jsonify({"error": str(e)}), 500
 
 
+# @app.route("/api/leave/requests", methods=["GET"])
+# def get_all_leave_requests():
+#     try:
+#         leaves = LeaveRequest.query.all()
+
+#         response = []
+
+#         for leave in leaves:
+
+#             employee = Employee.query.filter_by(emp_id=leave.emp_id).first()
+
+#             response.append(
+#                 {
+#                     "id": leave.id,
+#                     "emp_id": leave.emp_id,
+#                     # "name": employee.name,
+#                     # "start_date"
+#                     # "department": employee.department,
+#                     # "designation": employee.designation,
+#                     "start_date": str(leave.start_date),
+#                     "end_date": str(leave.end_date),
+#                     "reason": leave.reason,
+#                     "status": leave.status,
+#                     "total_days": leave.total_days,
+#                     "applied_at": leave.applied_at.strftime("%Y-%m-%d %H:%M:%S"),
+#                     "approved_at": (
+#                         leave.approved_at.strftime("%Y-%m-%d %H:%M:%S")
+#                         if leave.approved_at
+#                         else None
+#                     ),
+#                     "approved_by": leave.approved_by,
+#                     "created_at": leave.created_at.strftime("%Y-%m-%d %H:%M:%S"),
+#                     # "updated_at":leave.updated_at.strftime("%Y-%m-%d %H:%M:%S") if leave.updated_at else None,
+#                 }
+#             )
+
+#         return jsonify({"leave_requests": response}), 200
+
+#     except Exception as e:
+#         return jsonify({"error": str(e)}), 500
+
+
 @app.route("/api/leave/requests", methods=["GET"])
 def get_all_leave_requests():
     try:
-        leaves = LeaveRequest.query.all()
+        # Fetch all leave requests
+        # requests = LeaveRequest.query.all()
+
+        requests = LeaveRequest.query.filter_by(is_deleted=False).all()
 
         response = []
 
-        for leave in leaves:
-
-            employee = Employee.query.filter_by(emp_id=leave.emp_id).first()
+        for req in requests:
+            # Fetch employee details
+            employee = Employee.query.filter_by(emp_id=req.emp_id).first()
 
             response.append(
                 {
-                    "id": leave.id,
-                    "emp_id": leave.emp_id,
-                    "name": employee.name,
-                    # "start_date"
-                    "department": employee.department,
-                    "designation": employee.designation,
-                    "start_date": str(leave.start_date),
-                    "end_date": str(leave.end_date),
-                    "reason": leave.reason,
-                    "status": leave.status,
-                    "total_days": leave.total_days,
-                    "applied_at": leave.applied_at.strftime("%Y-%m-%d %H:%M:%S"),
-                    "approved_at": (
-                        leave.approved_at.strftime("%Y-%m-%d %H:%M:%S")
-                        if leave.approved_at
-                        else None
+                    "id": req.id,
+                    "emp_id": req.emp_id,
+                    "employee_name": employee.name if employee else "",
+                    "department": employee.department if employee else "",
+                    "designation": employee.designation if employee else "",
+                    "start_date": str(req.start_date),
+                    "end_date": str(req.end_date),
+                    "reason": req.reason,
+                    "status": req.status,
+                    "applied_at": (
+                        req.applied_at.strftime("%Y-%m-%d %H:%M:%S")
+                        if req.applied_at
+                        else ""
                     ),
-                    "approved_by": leave.approved_by,
-                    "created_at": leave.created_at.strftime("%Y-%m-%d %H:%M:%S"),
-                    # "updated_at":leave.updated_at.strftime("%Y-%m-%d %H:%M:%S") if leave.updated_at else None,
                 }
             )
 
-        return jsonify({"leave_requests": response}), 200
+        return jsonify({"requests": response}), 200
 
     except Exception as e:
         return jsonify({"error": str(e)}), 500
@@ -1706,31 +1745,52 @@ def activate_employee(emp_id):
 
 
 # Hard Delete of the employee Leave Request
-@app.route("/api/leave/delete/<int:leave_id>",methods=["DELETE"])
+@app.route("/api/leave/delete/<int:leave_id>", methods=["DELETE"])
 def delete_leave_request(leave_id):
-    
+
     leave = LeaveRequest.query.filter_by(id=leave_id).first()
-    
+
     if not leave:
-        return jsonify({"message":"Leave Request not found"}),404
-    
+        return jsonify({"message": "Leave Request not found"}), 404
+
     db.session.delete(leave)
     db.session.commit()
-    
-    return jsonify({"message":"Leave Request deleted successfully"}),200
+
+    return jsonify({"message": "Leave Request deleted successfully"}), 200
 
 
 # Soft Delete of the Employee Leave Request
-@app.route("/api/leave/soft-delete/<int:leave_id>",methods=["PUT"])
+# @app.route("/api/leave/soft-delete/<int:leave_id>", methods=["PUT"])
+# def soft_delete_leave_request(leave_id):
+
+#     leave = LeaveRequest.query.filter_by(id=leave_id).first()
+
+#     if not leave:
+#         return jsonify({"message": "Leave Request not found"}), 404
+
+#     leave.is_delted = True
+#     db.session.commit()
+
+
+@app.route("/api/leave/soft-delete/<int:leave_id>", methods=["PUT"])
 def soft_delete_leave_request(leave_id):
-    
-    leave = LeaveRequest.query.filter_by(id = leave_id).first()
-    
-    if not leave:
-        return jsonify({"message":"Leave Request not found"}),404
-    
-    leave.is_delted = True
-    db.session.commit()
+    try:
+        # Find leave request
+        leave_request = LeaveRequest.query.filter_by(id=leave_id).first()
+
+        if not leave_request:
+            return jsonify({"message": "Leave request not found"}), 404
+
+        # Mark as deleted
+        leave_request.is_deleted = True
+        db.session.commit()
+
+        return jsonify({"message": "Leave request soft-deleted successfully"}), 200
+
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
 # print(app.url_map)
 
 
