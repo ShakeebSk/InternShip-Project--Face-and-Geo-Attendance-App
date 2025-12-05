@@ -1,0 +1,12 @@
+Flask
+flask_sqlalchemy
+PyMySQL
+opencv-python
+face_recognition
+numpy
+Pillow
+python-dotenv
+werkzeug
+bcrypt
+cmake
+dlib
