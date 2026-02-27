@@ -2,5 +2,5 @@
 This is the Face and Geo based attendance System used for marking the attendance of employees.
 
 
-#Tech Stack 
+# Tech Stack 
 1. Python
